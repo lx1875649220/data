@@ -1,0 +1,219 @@
+import excel "C:\Users\lx\Desktop\普惠金融，环境规制，专利，碳排放，常用数据11-16年282个城市面板.xlsx", sheet("Sheet1") firstrow
+*generate Ere=建成区绿化覆盖率_市辖区_百分比
+generate Digit = 数字经济
+generate TI= 专利授权总量
+generate TI_1 = 发明专利授权量
+generate TI_2 = 实用新型专利授权量+外观设计专利授权量
+generate Carbon =二氧化碳排放
+generate Pgdp = 人均地区生产总值_全市_元
+generate Fdi = 外商实际投资额_全市_万美元/地区生产总值_当年价格_全市_万元
+generate Hc = 普通本专科在校学生数_全市_人
+generate Poe = 科学技术支出_全市_万元/地方一般公共预算支出_全市_万元
+generate Instr = 第三产业占GDP的比重_全市_百分比/第二产业占GDP的比重_全市_百分比
+generate Fisc = 省级人均财政支出/全国人均财政支出
+xtset 城市代码 年份
+generate LTI= L.TI
+generate LTI_1 = L.TI_1
+generate LTI_2 = L.TI_2
+
+
+
+center Digit TI TI_1 TI_2 Carbon Pgdp Fdi Hc Poe Instr Fisc Iv LTI LTI_1 LTI_2, prefix(c) standardize
+*控制变量
+global control "cPgdp cFdi cHc cPoe cInstr"
+
+cd "C:\Users\lx\Desktop"
+*描述性统计
+sum2docx Carbon Digit TI Pgdp Fdi Hc Poe Instr Fisc using 描述性统计1.docx,stats(N mean(%10.3f) sd(%10.3f) min(%10.3f) max(%10.3f))
+sum2docx cCarbon cDigit cTI cPgdp cFdi cHc cPoe cInstr cFisc using 描述性统计.docx,stats(N mean(%9.2f) sd min(%9.0g) max(%9.0g))
+*相关性分析
+corr2docx cCarbon cDigit cTI cPgdp cFdi cHc cPoe cInstr cFisc using 相关.docx, star
+*尝试
+
+generate cDigit_cFisc=cDigit*cFisc
+generate cIv_cFisc=cIv*cFisc
+
+*直接效应
+xtreg cCarbon cDigit $control i.年份,  fe vce(cluster 城市)
+est store a1
+*间接效应
+xtreg cTI cDigit $control i.年份,  fe vce(cluster 城市)
+est store a2
+xtreg cCarbon cDigit cTI  $control i.年份,  fe vce(cluster 城市)
+est store a3
+xtreg cTI cDigit cFisc $control i.年份,  fe vce(cluster 城市)
+est store a4
+xtreg cTI cDigit cFisc cDigit_cFisc $control i.年份,  fe vce(cluster 城市)
+est store a5
+
+
+*综合输出
+*esttab a1 a2 a3 a4 a5 using 中介加调节.rtf,b(%10.4f) scalars(r2 N F) mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+
+*直接效应
+xtreg cCarbon cDigit $control i.年份,  fe vce(cluster 城市)
+est store a1
+*间接效应
+xtreg cLTI cDigit $control i.年份,  fe vce(cluster 城市)
+est store b2
+xtreg cCarbon cDigit cLTI  $control i.年份,  fe vce(cluster 城市)
+est store b3
+xtreg cLTI cDigit cFisc $control i.年份,  fe vce(cluster 城市)
+est store b4
+xtreg cLTI cDigit cFisc cDigit_cFisc $control i.年份,  fe vce(cluster 城市)
+est store b5
+esttab a1 b2 b3 b4 b5 using 稳健性检验1.rtf,b(%10.4f) scalars(r2 N F) mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+
+*直接效应
+xtreg cCarbon cDigit $control i.年份,  fe vce(cluster 城市)
+est store a1
+*间接效应
+xtreg cTI_1 cDigit $control i.年份,  fe vce(cluster 城市)
+est store c2
+xtreg cCarbon cDigit cTI_1  $control i.年份,  fe vce(cluster 城市)
+est store c3
+xtreg cTI_1 cDigit cFisc $control i.年份,  fe vce(cluster 城市)
+est store c4
+xtreg cTI_1 cDigit cFisc cDigit_cFisc $control i.年份,  fe vce(cluster 城市)
+est store c5
+esttab a1 c2 c3 c4 c5 using 稳健性检验2-1.rtf,b(%10.4f) scalars(r2 N F) mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+*直接效应
+xtreg cCarbon cDigit $control i.年份,  fe vce(cluster 城市)
+est store a1
+*间接效应
+xtreg cTI_2 cDigit $control i.年份,  fe vce(cluster 城市)
+est store d2
+xtreg cCarbon cDigit cTI_2  $control i.年份,  fe vce(cluster 城市)
+est store d3
+xtreg cTI_2 cDigit cFisc $control i.年份,  fe vce(cluster 城市)
+est store d4
+xtreg cTI_2 cDigit cFisc cDigit_cFisc $control i.年份,  fe vce(cluster 城市)
+est store d5
+esttab a1 d2 d3 d4 d5 using 稳健性检验2-2.rtf,b(%10.4f) scalars(r2 N F) mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+
+
+
+
+
+
+
+
+
+*内生性检验
+*工具变量 两阶段
+
+xtivreg cCarbon $control i.年份 (cDigit=cIv),  fe  first
+est store n1
+xtivreg cTI $control i.年份 (cDigit=cIv),  fe  first
+*手动
+est store e1
+xtivreg cTI cFisc cIv*cFisc $control i.年份 (cDigit=cIv),  fe  first
+est store n2
+*xtivreg2 cTI $control (cDigit=cIv), fe r
+*xtivreg cTI cEre cDigit cDigit_cEre $control i.年份 (cDigit=cIv),  fe 
+*est store e2
+xtivreg cTI_1 $control i.年份 (cDigit=cIv),  fe  first
+est store e3
+xtivreg cTI_1 cFisc cIv*cFisc $control i.年份 (cDigit=cIv),  fe  first
+est store n3
+*xtivreg2 cTI_1 $control (cDigit=cIv), fe r
+*xtivreg cTI_1 cEre cDigit cIv_cEre $control i.年份 (cDigit=cIv),  fe
+*est store e4
+xtivreg cTI_2 $control i.年份 (cDigit=cIv),  fe  first
+est store e5
+xtivreg cTI_2 cFisc cIv*cFisc $control i.年份 (cDigit=cIv),  fe  first
+est store n4
+*xtivreg2 cTI_2 $control (cDigit=cIv), fe r
+*xtivreg cTI_2 cEre cDigit cDigit_cEre $control i.年份 (cDigit=cIv),  fe
+*est store e6
+esttab n1 e1 n2 e3 n3 e5 n4 using 内生性检验.rtf,b(%10.4f) se r2 mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+
+
+*异质性分析
+*0西，1东，2中
+gen city = 0
+replace city = 1 if 省份=="北京市"
+replace city = 1 if 省份=="天津市"
+replace city = 1 if 省份=="河北省"
+replace city = 1 if 省份=="上海市"
+replace city = 1 if 省份=="辽宁省"
+replace city = 1 if 省份=="江苏省"
+replace city = 1 if 省份=="浙江省"
+replace city = 1 if 省份=="福建省"
+replace city = 1 if 省份=="山东省"
+replace city = 1 if 省份=="广东省"
+replace city = 1 if 省份=="海南省"
+replace city = 2 if 省份=="山西省"
+replace city = 2 if 省份=="吉林省"
+replace city = 2 if 省份=="黑龙江省"
+replace city = 2 if 省份=="安徽省"
+replace city = 2 if 省份=="江西省"
+replace city = 2 if 省份=="河南省"
+replace city = 2 if 省份=="湖北省"
+replace city = 2 if 省份=="湖南省"
+
+*区域层面
+xtreg cCarbon cDigit $control i.年份 if city==1,  fe r
+est store c1
+xtreg cCarbon cDigit $control i.年份 if city==2,  fe r
+est store c2
+xtreg cCarbon cDigit $control i.年份 if city==0,  fe r
+est store c3
+
+
+*产业结构层面
+xtreg cCarbon cDigit $control i.年份 if Instr<1,  fe r
+est store h1
+xtreg cCarbon cDigit $control i.年份 if Instr>1,  fe r
+est store h2
+*综合输出
+esttab c1 c2 c3 h1 h2 using 异质性.rtf,b(%10.4f) scalars(r2 N F) mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+*分阶段异质性分析
+xtreg cCarbon cDigit $control i.年份 if 年份<2013,  fe r
+est store q1
+xtreg cCarbon cDigit $control i.年份 if 2012<年份<2015 ,  fe r
+est store q2
+xtreg cCarbon cDigit $control i.年份 if 2014<年份<2016 ,  fe r
+est store q3
+
+
+
+
+
+*门槛回归
+tab 年份, gen(yr)
+*画图
+xthreg cCarbon $control yr2-yr6 , rx(cDigit) qx(cFisc) thnum(1) grid(200) trim(0.10) bs(200) thgiven nobslog noreg
+_matplot e(LR), columns(1 2) yline(7.35, lTItern(dash))  connect(direct) msize(small) mlabp(0) mlabs(zero) ytitle("LR Statistics") xtitle("Fisc First Threshold") recast(line) 
+graph export "xthreg-frank09ei-LR1.png", as(png) replace
+*看回归系数
+xthreg cCarbon $control yr2-yr6 , rx(cDigit) qx(cFisc) thnum(1) grid(200) trim(0.10) bs(200)
+est store f1
+*综合输出
+esttab f1 using 门槛1.rtf,b(%10.3f) scalars(r2 N F) mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+*xthreg cTI $control yr2-yr6 , rx(cDigit) qx(cEre) thnum(1) grid(200) trim(0.10) bs(200) thgiven nobslog noreg
+*_matplot e(LR), columns(1 2) yline(7.35, lTItern(dash))  connect(direct) msize(small) mlabp(0) mlabs(zero) ytitle("LR Statistics") xtitle("Ere First Threshold") recast(line) 
+*graph export "xthreg-frank09ei-LR1.png", as(png) replace
+*看回归系数
+*xthreg cTI $control yr2-yr6 , rx(cDigit) qx(cEre) thnum(1) grid(200) trim(0.10) bs(200)
+*est store f2
+*综合输出
+*esttab f2 using 门槛2.rtf,b(%10.3f) scalars(r2 N F) mtitle star(* 0.1 ** 0.05 *** 0.01)
+
+
+
+
+
+
+
+
+
+
+
